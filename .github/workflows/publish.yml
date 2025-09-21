@@ -3,7 +3,7 @@ on: push
 jobs:
   publish-docker-image-main:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' # Running this job only for master branch
+    if: github.ref == 'refs/heads/dev' # Running this job only for master branch
     steps:
       - uses: actions/checkout@v4
       - name: Login to GitHub Container Registry

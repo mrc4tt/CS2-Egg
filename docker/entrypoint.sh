@@ -73,8 +73,8 @@ if [ ! -z ${SRCDS_APPID} ] && [ ${SRCDS_STOP_UPDATE:-0} -eq 0 ]; then
         fi
     fi
 
-    log_message "SteamCMD command: $(echo "$STEAMCMD" | sed -E 's/(\+login [^ ]+ )[^ ]+/\1****/')" "debug"
-    eval ${STEAMCMD}
+    #log_message "SteamCMD command: $(echo "$STEAMCMD" | sed -E 's/(\+login [^ ]+ )[^ ]+/\1****/')" "debug"
+    #eval ${STEAMCMD}
 
     # Update steamclient.so files
     cp -f ./steamcmd/linux32/steamclient.so ./.steam/sdk32/steamclient.so

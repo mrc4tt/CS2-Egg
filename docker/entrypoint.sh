@@ -93,8 +93,12 @@ if [ "${UPDATE_AUTO_RESTART:-0}" -eq 1 ]; then
 fi
 
 # Prepare startup command
-MODIFIED_STARTUP=$(eval echo $(echo ${STARTUP} | sed -e 's/{{/${/g' -e 's/}}/}/g'))
-MODIFIED_STARTUP="unbuffer -p ${MODIFIED_STARTUP}"
+# Convert {{VAR}} → ${VAR} but DO NOT eval here (keeps $(...) intact)
+REPLACED="$(printf '%s' "${STARTUP}" | sed -e 's/{{/${/g' -e 's/}}/}/g')"
+
+# Run the command under bash -lc so ${VAR} expands at runtime
+# and any $(...) stays intact until the final exec
+MODIFIED_STARTUP="unbuffer -p bash -lc \"$REPLACED\""
 
 # Log censored startup command
 LOGGED_STARTUP=$(echo "${MODIFIED_STARTUP#unbuffer -p }" | \

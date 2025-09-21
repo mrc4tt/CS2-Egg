@@ -1,18 +1,21 @@
 name: publish
 on: push
+
 jobs:
   publish-docker-image-main:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dev' # Running this job only for master branch
+    if: github.ref == 'refs/heads/dev' # Running this job only for dev branch
     steps:
       - uses: actions/checkout@v4
-      - name: Login to GitHub Container Registry
+
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Publish Docker image
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Docker image
         run: |
-              docker build . -t ghcr.io/mrc4tt/cs2-dev:latest -f docker/Dockerfile
-              docker push ghcr.io/mrc4tt/cs2-dev:latest
+          docker build . -t mrc4tt/miksen:latest -f docker/Dockerfile
+          docker push mrc4tt/miksen:latest
+

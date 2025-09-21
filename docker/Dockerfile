@@ -19,7 +19,7 @@ RUN         apt update && \
 RUN         mkdir -p /scripts /utils
 COPY        ./scripts/* /scripts/
 COPY        ./utils/* /utils/
-COPY        ./entrypoint.sh entrypoint.sh
+COPY        ./entrypoint.sh /entrypoint.sh
 
 # Set permissions
 RUN         chmod +x /scripts/*.sh && \

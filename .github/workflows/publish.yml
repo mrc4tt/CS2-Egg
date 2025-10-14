@@ -31,8 +31,7 @@ jobs:
         with:
           images: ghcr.io/mrc4tt/miksen
           tags: |
-            type=raw,value=latest
-            type=sha,format=short,prefix=dev-
+            type=raw,value=dev
 
       - name: Build & Push Docker image
         uses: docker/build-push-action@v5

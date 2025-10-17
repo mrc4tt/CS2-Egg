@@ -110,6 +110,12 @@ cleanup_and_update() {
         update_addon "roflmuffin/CounterStrikeSharp" "$OUTPUT_DIR" "css" "CSS"
     fi
 
+    # Source2ZE addons
+    if [ "${SOURCE2ZE_ADDONS:-0}" = "1" ]; then
+        update_source2ze_addon "Source2ZE/CleanerCS2" "$OUTPUT_DIR" "cleanercs2" "CleanerCS2"
+        update_source2ze_addon "Source2ZE/ServerListPlayersFix" "$OUTPUT_DIR" "serverlistplayersfix" "ServerListPlayersFix"
+    fi
+
     # Clean up
     rm -rf "$TEMP_DIR"
 }
@@ -153,6 +159,57 @@ update_addon() {
     return 1
 }
 
+update_source2ze_addon() {
+    local repo="$1"
+    local output_path="$2"
+    local temp_subdir="$3"
+    local addon_name="$4"
+    local temp_dir="$TEMP_DIR/$temp_subdir"
+
+    mkdir -p "$output_path" "$temp_dir"
+    rm -rf "$temp_dir"/*
+
+    local api_response=$(curl -s "https://api.github.com/repos/$repo/releases/latest")
+    if [ -z "$api_response" ]; then
+        log_message "Failed to get release info for $repo" "error"
+        return 1
+    fi
+
+    local new_version=$(echo "$api_response" | grep -oP '"tag_name": "\K[^"]+')
+    local current_version=$(get_current_version "$addon_name")
+    
+    local asset_url=$(echo "$api_response" | grep -oP '"browser_download_url": "\K[^"]+' | \
+        grep "releases/download" | \
+        grep -v "windows" | \
+        grep -E "\.(zip|tar\.gz)$" | \
+        head -1)
+
+    local file_type="zip"
+    local file_ext="download.zip"
+    if [[ "$asset_url" == *.tar.gz ]]; then
+        file_type="tar.gz"
+        file_ext="download.tar.gz"
+    fi
+
+    if ! check_version "$addon_name" "$current_version" "$new_version"; then
+        return 0
+    fi
+
+    if [ -z "$asset_url" ]; then
+        log_message "No suitable asset found for $repo" "error"
+        return 1
+    fi
+
+    if handle_download_and_extract "$asset_url" "$temp_dir/$file_ext" "$temp_dir" "$file_type"; then
+        cp -r "$temp_dir/addons/." "$output_path" && \
+        update_version_file "$addon_name" "$new_version" && \
+        log_message "Update of $repo completed successfully" "success"
+        return 0
+    fi
+
+    return 1
+}
+
 update_metamod() {
     if [ ! -d "$OUTPUT_DIR/metamod" ]; then
         log_message "Metamod not installed. Installing Metamod..." "running"
@@ -180,25 +237,4 @@ update_metamod() {
     fi
 
     return 1
-}
-
-configure_metamod() {
-    local GAMEINFO_FILE="/home/container/game/csgo/gameinfo.gi"
-    local GAMEINFO_ENTRY="			Game	csgo/addons/metamod"
-
-    if [ -f "${GAMEINFO_FILE}" ]; then
-        if ! grep -q "Game[[:blank:]]*csgo\/addons\/metamod" "$GAMEINFO_FILE"; then # match any whitespace
-            awk -v new_entry="$GAMEINFO_ENTRY" '
-                BEGIN { found=0; }
-                // {
-                    if (found) {
-                        print new_entry;
-                        found=0;
-                    }
-                    print;
-                }
-                /Game_LowViolence/ { found=1; }
-            ' "$GAMEINFO_FILE" > "$GAMEINFO_FILE.tmp" && mv "$GAMEINFO_FILE.tmp" "$GAMEINFO_FILE"
-        fi
-    fi
 }

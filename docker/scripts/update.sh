@@ -112,7 +112,6 @@ cleanup_and_update() {
 
     # Source2ZE addons
     if [ "${SOURCE2ZE_ADDONS:-0}" = "1" ]; then
-        update_source2ze_addon "Source2ZE/CleanerCS2" "$OUTPUT_DIR" "cleanercs2" "CleanerCS2"
         update_source2ze_addon "Source2ZE/ServerListPlayersFix" "$OUTPUT_DIR" "serverlistplayersfix" "ServerListPlayersFix"
     fi
 
@@ -237,4 +236,25 @@ update_metamod() {
     fi
 
     return 1
+}
+
+configure_metamod() {
+    local GAMEINFO_FILE="/home/container/game/csgo/gameinfo.gi"
+    local GAMEINFO_ENTRY="			Game	csgo/addons/metamod"
+
+    if [ -f "${GAMEINFO_FILE}" ]; then
+        if ! grep -q "Game[[:blank:]]*csgo\/addons\/metamod" "$GAMEINFO_FILE"; then # match any whitespace
+            awk -v new_entry="$GAMEINFO_ENTRY" '
+                BEGIN { found=0; }
+                // {
+                    if (found) {
+                        print new_entry;
+                        found=0;
+                    }
+                    print;
+                }
+                /Game_LowViolence/ { found=1; }
+            ' "$GAMEINFO_FILE" > "$GAMEINFO_FILE.tmp" && mv "$GAMEINFO_FILE.tmp" "$GAMEINFO_FILE"
+        fi
+    fi
 }

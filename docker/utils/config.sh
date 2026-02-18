@@ -159,7 +159,7 @@ create_cleanup_config() {
     "",
     "Intervals (hours):",
     "  - backup_rounds_hours: Delete backup_round*.txt older than X hours (default: 24)",
-    "  - demos_hours: Delete *.dem files older than X hours (default: 168 = 7 days)",
+    "  - demos_hours: Delete *.dem files older than X hours (default: 336 = 14 days)",
     "  - css_logs_hours: Delete CounterStrikeSharp logs older than X hours (default: 72)",
     "  - accelerator_dumps_hours: Delete Accelerator crash dumps older than X hours (default: 168)",
     "",
@@ -171,7 +171,7 @@ create_cleanup_config() {
   ],
   "intervals": {
     "backup_rounds_hours": 24,
-    "demos_hours": 168,
+    "demos_hours": 336,
     "css_logs_hours": 72,
     "accelerator_dumps_hours": 168
   },

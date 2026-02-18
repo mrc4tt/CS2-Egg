@@ -6,9 +6,29 @@ source /utils/version.sh
 GAME_DIRECTORY="./game/csgo"
 OUTPUT_DIR="./game/csgo/addons"
 TEMP_DIR="./temps"
-ACCELERATOR_DUMPS_DIR="$OUTPUT_DIR/AcceleratorCS2/dumps"
-VERSION_FILE="./game/versions.txt"
+VERSION_FILE="${EGG_DIR:-/home/container/egg}/versions.txt"
 
+# ─── Semver Comparison ──────────────────────────────────────────────
+# Returns: 0 = equal, 1 = v1 > v2, 2 = v1 < v2
+semver_compare() {
+    local v1=$(echo "$1" | sed 's/^[vV]//')
+    local v2=$(echo "$2" | sed 's/^[vV]//')
+
+    if [ "$v1" = "$v2" ]; then
+        return 0
+    fi
+
+    # Use sort -V to find the "largest" version
+    local highest=$(printf "%s\n%s" "$v1" "$v2" | sort -V | tail -n1)
+
+    if [ "$v1" = "$highest" ]; then
+        return 1 # v1 > v2
+    else
+        return 2 # v1 < v2
+    fi
+}
+
+# ─── Version Tracking ───────────────────────────────────────────────
 get_current_version() {
     local addon="$1"
     if [ -f "$VERSION_FILE" ]; then
@@ -21,14 +41,17 @@ get_current_version() {
 update_version_file() {
     local addon="$1"
     local new_version="$2"
-    if grep -q "^$addon=" "$VERSION_FILE"; then
+
+    mkdir -p "$(dirname "$VERSION_FILE")"
+
+    if [ -f "$VERSION_FILE" ] && grep -q "^$addon=" "$VERSION_FILE"; then
         sed -i "s/^$addon=.*/$addon=$new_version/" "$VERSION_FILE"
     else
         echo "$addon=$new_version" >> "$VERSION_FILE"
     fi
 }
 
-# Centralized download and extract function
+# ─── Download & Extract ─────────────────────────────────────────────
 handle_download_and_extract() {
     local url="$1"
     local output_file="$2"
@@ -37,7 +60,6 @@ handle_download_and_extract() {
 
     log_message "Downloading from: $url" "debug"
 
-    # Download with timeout and retry
     local max_retries=3
     local retry=0
     while [ $retry -lt $max_retries ]; do
@@ -80,21 +102,37 @@ handle_download_and_extract() {
     return 0
 }
 
-# Centralized version checking
+# ─── Version Check (with semver) ────────────────────────────────────
 check_version() {
     local addon="$1"
     local current="${2:-none}"
     local new="$3"
 
-    if [ "$current" != "$new" ]; then
-        log_message "New version of $addon available: $new (current: $current)" "running"
-        return 0
+    if [ "$current" = "none" ] || [ -z "$current" ]; then
+        log_message "New version of $addon available: $new (current: none)" "running"
+        return 0 # New install
     fi
 
-    log_message "No new version of $addon available. Current: $current" "debug"
-    return 1
+    semver_compare "$new" "$current"
+    case $? in
+        0) # Equal
+            log_message "No new version of $addon available. Current: $current" "debug"
+            return 1
+            ;;
+        1) # new > current
+            log_message "New version of $addon available: $new (current: $current)" "running"
+            return 0
+            ;;
+        2) # new < current → prevent downgrade
+            log_message "$addon is at a newer version ($current) than latest ($new). Skipping downgrade." "info"
+            return 1
+            ;;
+    esac
 }
 
+# ─── Addon Updaters ─────────────────────────────────────────────────
+# NOTE: gameinfo.gi management (MetaMod injection, load order) is handled
+# by the host-level cs2_update.sh script, not the egg.
 cleanup_and_update() {
     if [ "${CLEANUP_ENABLED:-0}" = "1" ]; then
         cleanup
@@ -113,6 +151,11 @@ cleanup_and_update() {
     # Source2ZE addons
     if [ "${SOURCE2ZE_ADDONS:-0}" = "1" ]; then
         update_source2ze_addon "Source2ZE/ServerListPlayersFix" "$OUTPUT_DIR" "serverlistplayersfix" "ServerListPlayersFix"
+    fi
+
+    # MultiAddonManager
+    if [ "${MAM_AUTOUPDATE:-0}" = "1" ]; then
+        update_source2ze_addon "Source2ZE/MultiAddonManager" "$OUTPUT_DIR" "mam" "MultiAddonManager"
     fi
 
     # Clean up
@@ -137,7 +180,7 @@ update_addon() {
 
     local new_version=$(echo "$api_response" | grep -oP '"tag_name": "\K[^"]+')
     local current_version=$(get_current_version "$addon_name")
-    local asset_url=$(echo "$api_response" | grep -oP '"browser_download_url": "\K[^"]+-with-runtime-linux-[^"]+\.zip')
+    local asset_url=$(echo "$api_response" | grep -oP '"browser_download_url": "\K[^"]*-with-runtime-linux-[^"]+\.zip')
 
     if ! check_version "$addon_name" "$current_version" "$new_version"; then
         return 0
@@ -176,7 +219,7 @@ update_source2ze_addon() {
 
     local new_version=$(echo "$api_response" | grep -oP '"tag_name": "\K[^"]+')
     local current_version=$(get_current_version "$addon_name")
-    
+
     local asset_url=$(echo "$api_response" | grep -oP '"browser_download_url": "\K[^"]+' | \
         grep "releases/download" | \
         grep -v "windows" | \
@@ -236,25 +279,4 @@ update_metamod() {
     fi
 
     return 1
-}
-
-configure_metamod() {
-    local GAMEINFO_FILE="/home/container/game/csgo/gameinfo.gi"
-    local GAMEINFO_ENTRY="			Game	csgo/addons/metamod"
-
-    if [ -f "${GAMEINFO_FILE}" ]; then
-        if ! grep -q "Game[[:blank:]]*csgo\/addons\/metamod" "$GAMEINFO_FILE"; then # match any whitespace
-            awk -v new_entry="$GAMEINFO_ENTRY" '
-                BEGIN { found=0; }
-                // {
-                    if (found) {
-                        print new_entry;
-                        found=0;
-                    }
-                    print;
-                }
-                /Game_LowViolence/ { found=1; }
-            ' "$GAMEINFO_FILE" > "$GAMEINFO_FILE.tmp" && mv "$GAMEINFO_FILE.tmp" "$GAMEINFO_FILE"
-        fi
-    fi
 }

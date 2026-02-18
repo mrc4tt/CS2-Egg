@@ -1,9 +1,9 @@
 # Dockerfile with SteamRT3
 FROM        registry.gitlab.steamos.cloud/steamrt/sniper/platform:latest-container-runtime-depot
-LABEL       author="K4ryuu @ KitsuneLab" \
-            maintainer="contact@kitsune-lab.com" \
-            org.opencontainers.image.description="The SteamRT3 Platform image for Pterodactyl CS2 servers is packed with numerous features, designed to simplify server management and reduce hassle." \
-            org.opencontainers.image.source="https://github.com/K4ryuu/CS2-Egg"
+LABEL       author="Miksen" \
+            maintainer="mikkel@pwnt.dk" \
+            org.opencontainers.image.description="CS2 Pterodactyl Egg" \
+            org.opencontainers.image.source="https://github.com/mrc4tt/CS2-Egg"
 
 # Prep OS
 RUN         mkdir -p /etc/sudoers.d && \
@@ -15,16 +15,14 @@ RUN         apt update && \
             apt install -y iproute2 jq unzip expect rsync && \
             apt-get clean
 
-# Create directories and copy files
 RUN         mkdir -p /scripts /utils
 COPY        ./scripts/* /scripts/
 COPY        ./utils/* /utils/
 COPY        ./entrypoint.sh /entrypoint.sh
 
-# Set permissions
-RUN         chmod +x /scripts/*.sh && \
-            chmod +x /utils/*.sh && \
-            chmod +x /entrypoint.sh
+RUN         chmod 555 /scripts/*.sh && \
+            chmod 555 /utils/*.sh && \
+            chmod 555 /entrypoint.sh
 
 USER        container
 ENV         USER=container HOME=/home/container

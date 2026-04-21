@@ -145,7 +145,7 @@ cleanup_and_update() {
     fi
 
     if [ "${CSS_AUTOUPDATE:-0}" = "1" ]; then
-        update_addon "roflmuffin/CounterStrikeSharp" "$OUTPUT_DIR" "css" "CSS"
+        update_addon "mrc4tt/CounterStrikeSharp" "$OUTPUT_DIR" "css" "CSS"
     fi
 
     # Source2ZE addons

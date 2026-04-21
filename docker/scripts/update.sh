@@ -257,13 +257,22 @@ update_metamod() {
         log_message "Metamod not installed. Installing Metamod..." "running"
     fi
 
-    local metamod_version=$(curl -sL https://mms.alliedmods.net/mmsdrop/2.0/ | grep -oP 'href="\K(mmsource-[^"]*-linux\.tar\.gz)' | tail -1)
-    if [ -z "$metamod_version" ]; then
+    # 2.0 builds are published as GitHub pre-releases, so /releases/latest
+    # returns the 1.12 Source 1 branch. Scan recent releases and pick the
+    # newest 2.x Linux asset.
+    local api_response=$(curl -s "https://api.github.com/repos/alliedmodders/metamod-source/releases?per_page=30")
+    if [ -z "$api_response" ]; then
+        log_message "Failed to get release info for alliedmodders/metamod-source" "error"
+        return 1
+    fi
+
+    local full_url=$(echo "$api_response" | grep -oP '"browser_download_url":\s*"\K[^"]*mmsource-2\.[0-9.]+-git\d+-linux\.tar\.gz' | head -1)
+    if [ -z "$full_url" ]; then
         log_message "Failed to fetch the Metamod version" "error"
         return 1
     fi
 
-    local full_url="https://mms.alliedmods.net/mmsdrop/2.0/$metamod_version"
+    local metamod_version=$(basename "$full_url")
     local new_version=$(echo "$metamod_version" | grep -oP 'git\d+')
     local current_version=$(get_current_version "Metamod")
 

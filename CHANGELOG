@@ -1,3 +1,7 @@
+-- update - 2026.04.21
+
+- fix: Metamod updater now pulls from GitHub releases (alliedmodders/metamod-source) since mms.alliedmods.net/mmsdrop/2.0/ is no longer updated
+
 -- update - 2025.03.27
 
 - feat: Added support for the new CounterStrikeSharp versioning schema

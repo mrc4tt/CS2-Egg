@@ -57,13 +57,22 @@ handle_download_and_extract() {
     local output_file="$2"
     local extract_dir="$3"
     local file_type="$4"  # "zip" or "tar.gz"
+    local auth_token="${5:-}"  # optional GitHub token for private-repo asset downloads
 
     log_message "Downloading from: $url" "debug"
+
+    # For private-repo release assets we must hit the GitHub asset API endpoint
+    # with an auth token and Accept: application/octet-stream. curl drops the
+    # Authorization header on the cross-host redirect to S3 automatically.
+    local -a curl_extra=()
+    if [ -n "$auth_token" ]; then
+        curl_extra=(-H "Authorization: Bearer $auth_token" -H "Accept: application/octet-stream")
+    fi
 
     local max_retries=3
     local retry=0
     while [ $retry -lt $max_retries ]; do
-        if curl -fsSL -m 300 -o "$output_file" "$url"; then
+        if curl -fsSL -m 300 "${curl_extra[@]}" -o "$output_file" "$url"; then
             break
         fi
         ((retry++))
@@ -172,26 +181,42 @@ update_addon() {
     mkdir -p "$output_path" "$temp_dir"
     rm -rf "$temp_dir"/*
 
-    local api_response=$(curl -s "https://api.github.com/repos/$repo/releases/latest")
+    # mrc4tt/CounterStrikeSharp is a private repo: send the token on the API
+    # call so the release is visible, and download the asset via its API
+    # endpoint (browser_download_url 404s for private repos).
+    local token="${CSS_GITHUB_TOKEN:-}"
+    local -a api_auth=()
+    if [ -n "$token" ]; then
+        api_auth=(-H "Authorization: Bearer $token")
+    fi
+
+    local api_response=$(curl -s "${api_auth[@]}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$repo/releases/latest")
     if [ -z "$api_response" ]; then
         log_message "Failed to get release info for $repo" "error"
         return 1
     fi
 
-    local new_version=$(echo "$api_response" | grep -oP '"tag_name": "\K[^"]+')
+    local new_version=$(echo "$api_response" | jq -r '.tag_name // empty')
+    if [ -z "$new_version" ]; then
+        log_message "Failed to read release info for $repo (private repo without a valid CSS_GITHUB_TOKEN?)" "error"
+        return 1
+    fi
+
     local current_version=$(get_current_version "$addon_name")
-    local asset_url=$(echo "$api_response" | grep -oP '"browser_download_url": "\K[^"]*-with-runtime-linux-[^"]+\.zip')
+    local asset_id=$(echo "$api_response" | jq -r '.assets[] | select(.name | test("-with-runtime-linux-.*\\.zip$")) | .id' | head -1)
 
     if ! check_version "$addon_name" "$current_version" "$new_version"; then
         return 0
     fi
 
-    if [ -z "$asset_url" ]; then
+    if [ -z "$asset_id" ]; then
         log_message "No suitable asset found for $repo" "error"
         return 1
     fi
 
-    if handle_download_and_extract "$asset_url" "$temp_dir/download.zip" "$temp_dir" "zip"; then
+    local asset_url="https://api.github.com/repos/$repo/releases/assets/$asset_id"
+
+    if handle_download_and_extract "$asset_url" "$temp_dir/download.zip" "$temp_dir" "zip" "$token"; then
         cp -r "$temp_dir/addons/." "$output_path" && \
         update_version_file "$addon_name" "$new_version" && \
         log_message "Update of $repo completed successfully" "success"

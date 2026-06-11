@@ -217,7 +217,14 @@ update_addon() {
     local asset_url="https://api.github.com/repos/$repo/releases/assets/$asset_id"
 
     if handle_download_and_extract "$asset_url" "$temp_dir/download.zip" "$temp_dir" "zip" "$token"; then
-        cp -r "$temp_dir/addons/." "$output_path" && \
+        # The asset may or may not wrap its payload in a top-level addons/ dir,
+        # so locate it wherever it landed inside the extracted tree.
+        local addons_src=$(find "$temp_dir" -maxdepth 4 -type d -name addons | head -1)
+        if [ -z "$addons_src" ]; then
+            log_message "No addons/ directory found in $repo asset. Extracted: $(ls -A "$temp_dir" | tr '\n' ' ')" "error"
+            return 1
+        fi
+        cp -r "$addons_src/." "$output_path" && \
         update_version_file "$addon_name" "$new_version" && \
         log_message "Update of $repo completed successfully" "success"
         return 0

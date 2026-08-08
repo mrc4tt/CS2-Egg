@@ -4,7 +4,6 @@ source /utils/logging.sh
 source /utils/config.sh
 source /scripts/install.sh
 source /scripts/cleanup.sh
-source /scripts/update.sh
 source /scripts/filter.sh
 source /scripts/update_helper.sh
 
@@ -101,8 +100,15 @@ if [ ! -z ${SRCDS_APPID} ] && [ ${SRCDS_STOP_UPDATE:-0} -eq 0 ]; then
     cp -f ./steamcmd/linux64/steamclient.so ./.steam/sdk64/steamclient.so
 fi
 
-# Run cleanup and update addons
-cleanup_and_update
+# Addon installation and updates are no longer done here. They are owned by the
+# panel's Mods & Plugins system, which materialises the addon set on the host
+# immediately before this container starts. Doing it again in here would run
+# *after* that and silently overwrite it, which made version pins and rollbacks
+# look like they worked while GitHub's copy replaced them at every boot.
+if [ "${CLEANUP_ENABLED:-0}" = "1" ]; then
+    cleanup
+fi
+
 setup_message_filter
 
 MODIFIED_STARTUP=$(eval echo $(echo ${STARTUP} | sed -e 's/{{/${/g' -e 's/}}/}/g'))

@@ -10,7 +10,7 @@
 <div align="center">
   <h1 align="center">KitsuneLab©</h1>
   <h3 align="center">CS2 Egg</h3>
-  <a align="center">CS2 Pterodactyl Egg with custom scripts such as junk cleaner, console filter and auto restart on update with colored logging.</a>
+  <a align="center">CS2 Pterodactyl Egg with custom scripts such as CSS auto-updater, MetaMod auto-updater, junk cleaner, auto restart on update with colored logging.</a>
 
   <p align="center">
     <br />
@@ -29,8 +29,11 @@
 ## Features
 
 - Console Filter (block unwanted messages from appearing in console) idea from [Poggu](https://github.com/Poggicek), who made that in [Metamod](https://github.com/Source2ZE/CleanerCS2)
+- CounterStrikeSharp Auto-Updater
+- MetaMod Auto-Updater
 - Junk Cleaner (Round backups 24hour, logs 3days, css logs 3days, accelerator logs 7days, demo files 7days)
 - Colored logs from the main scripts
+- Save version and update only if necessary
 - Automatically restart the server after when update detected
 - Premade variables to support custom parameters safely by user
 - Optional Discord Webhook support for scheduled auto-restart
